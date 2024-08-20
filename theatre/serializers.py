@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework.relations import SlugRelatedField
 
-from theatre.models import Actor, Genre, Play, TheatreHall
+from theatre.models import Actor, Genre, Play, TheatreHall, Performance
 
 
 class ActorSerializer(serializers.ModelSerializer):
@@ -59,3 +59,22 @@ class TheatreHallSerializer(serializers.ModelSerializer):
                 "The number of seats per row must be greater than zero."
             )
         return value
+
+
+class PerformanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Performance
+        fields = ("id", "play", "theatre_hall", "show_time")
+
+
+class PerformanceDetailSerializer(PerformanceSerializer):
+    play = PlayDetailSerializer()
+    theatre_hall = TheatreHallSerializer()
+
+
+class PerformanceListSerializer(PerformanceSerializer):
+    play = serializers.SlugRelatedField(read_only=True, slug_field="title")
+    theatre_hall = serializers.SlugRelatedField(
+        read_only=True,
+        slug_field="name",
+    )
