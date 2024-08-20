@@ -1,7 +1,8 @@
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from rest_framework.relations import SlugRelatedField
+from rest_framework.serializers import SlugRelatedField
 
-from theatre.models import Actor, Genre, Play, TheatreHall, Performance
+from theatre.models import Actor, Genre, Play, TheatreHall, Performance, Reservation
 
 
 class ActorSerializer(serializers.ModelSerializer):
@@ -20,20 +21,21 @@ class GenreSerializer(serializers.ModelSerializer):
         fields = ("id", "name")
 
 
-class PlayListSerializer(serializers.ModelSerializer):
+class PlaySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Play
         fields = ("id", "title", "description", "actors", "genres")
 
 
-class PlayDetailSerializer(PlayListSerializer):
+class PlayListSerializer(PlaySerializer):
+    actors = SlugRelatedField(many=True, read_only=True, slug_field="full_name")
+    genres = SlugRelatedField(many=True, read_only=True, slug_field="name")
+
+
+class PlayDetailSerializer(PlaySerializer):
     actors = ActorSerializer(many=True, read_only=True)
     genres = GenreSerializer(many=True)
-
-    class Meta:
-        model = Play
-        fields = ("id", "title", "description", "actors", "genres")
 
 
 class TheatreHallSerializer(serializers.ModelSerializer):
@@ -73,8 +75,36 @@ class PerformanceDetailSerializer(PerformanceSerializer):
 
 
 class PerformanceListSerializer(PerformanceSerializer):
-    play = serializers.SlugRelatedField(read_only=True, slug_field="title")
-    theatre_hall = serializers.SlugRelatedField(
+    play = SlugRelatedField(read_only=True, slug_field="title")
+    theatre_hall = SlugRelatedField(
         read_only=True,
         slug_field="name",
     )
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = get_user_model()
+        fields = ("id", "username", "password", "is_staff")
+        read_only_fields = ("is_staff",)
+        extra_kwargs = {"password": {"write_only": True, "min_length": 5}}
+
+    def create(self, validated_data):
+        """Create a new user with encrypted password and return it"""
+        return get_user_model().objects.create_user(**validated_data)
+
+    def update(self, instance, validated_data):
+        """Update a user, set the password correctly and return it"""
+        password = validated_data.pop("password", None)
+        user = super().update(instance, validated_data)
+        if password:
+            user.set_password(password)
+            user.save()
+
+        return user
+
+
+class ReservationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reservation
+        fields = ("created_at", "user")
