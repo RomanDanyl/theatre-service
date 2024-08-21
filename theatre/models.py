@@ -78,7 +78,7 @@ class Ticket(models.Model):
     )
 
     class Meta:
-        unique_together = ("movie_session", "row", "seat")
+        unique_together = ("performance", "row", "seat")
 
     @staticmethod
     def validate_ticket(row, seat, theatre_hall, error_to_raise):
