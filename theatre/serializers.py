@@ -58,14 +58,14 @@ class TheatreHallSerializer(serializers.ModelSerializer):
         )
 
     def validate_rows(self, value):
-        if value <= 0:
+        if value <= 1:
             raise serializers.ValidationError(
                 "The number of rows must be greater than zero."
             )
         return value
 
     def validate_seats_in_row(self, value):
-        if value <= 0:
+        if value <= 1:
             raise serializers.ValidationError(
                 "The number of seats per row must be greater than zero."
             )
