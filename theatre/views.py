@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from django.db.models import F, Count
 from django.shortcuts import render
 from rest_framework import viewsets, filters
 from rest_framework.exceptions import PermissionDenied
@@ -84,7 +85,12 @@ class TheatreHallViewSet(viewsets.ModelViewSet):
 
 
 class PerformanceViewSet(viewsets.ModelViewSet):
-    queryset = Performance.objects.select_related("play", "theatre_hall")
+    queryset = Performance.objects.select_related("play", "theatre_hall").annotate(
+        tickets_available=(
+            F("theatre_hall__rows") * F("theatre_hall__seats_in_row")
+            - Count("tickets_performance")
+        )
+    )
 
     def get_queryset(self):
         """Retrieve the movies with filters"""
