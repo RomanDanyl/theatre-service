@@ -126,6 +126,8 @@ class PerformanceListSerializer(PerformanceSerializer):
 
 
 class ReservationSerializer(serializers.ModelSerializer):
+    user = SlugRelatedField(read_only=True, slug_field="username")
+
     class Meta:
         model = Reservation
         fields = ("id", "created_at", "user")
