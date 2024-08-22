@@ -24,6 +24,7 @@ from theatre.serializers import (
     PlaySerializer,
     ReservationSerializer,
     TicketSerializer,
+    TicketDetailSerializer,
 )
 
 
@@ -42,7 +43,7 @@ class GenreViewSet(viewsets.ModelViewSet):
 
 
 class PlayViewSet(viewsets.ModelViewSet):
-    queryset = Play.objects.all()
+    queryset = Play.objects.prefetch_related("actors", "genres")
     filter_backends = [filters.SearchFilter]
     search_fields = ["title"]
 
@@ -82,7 +83,7 @@ class TheatreHallViewSet(viewsets.ModelViewSet):
 
 
 class PerformanceViewSet(viewsets.ModelViewSet):
-    queryset = Performance.objects.all()
+    queryset = Performance.objects.select_related("play", "theatre_hall")
 
     def get_queryset(self):
         """Retrieve the movies with filters"""
@@ -113,10 +114,32 @@ class PerformanceViewSet(viewsets.ModelViewSet):
 
 
 class ReservationViewSet(viewsets.ModelViewSet):
-    queryset = Reservation.objects.all()
+    queryset = Reservation.objects.prefetch_related("user", "tickets_reservation")
     serializer_class = ReservationSerializer
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return self.queryset
+        if self.request.user.is_authenticated:
+            return Reservation.objects.filter(user=self.request.user)
+        return self.queryset
 
 
 class TicketViewSet(viewsets.ModelViewSet):
-    queryset = Ticket.objects.all()
-    serializer_class = TicketSerializer
+    queryset = Ticket.objects.select_related(
+        "performance__play",
+        "performance__theatre_hall",
+        "reservation__user",
+    )
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return TicketDetailSerializer
+        return TicketSerializer
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return self.queryset
+        if self.request.user.is_authenticated:
+            return Ticket.objects.filter(reservation__user=self.request.user)
+        return self.queryset

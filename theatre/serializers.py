@@ -78,9 +78,38 @@ class PerformanceSerializer(serializers.ModelSerializer):
         fields = ("id", "play", "theatre_hall", "show_time")
 
 
+class TicketSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        data = super(TicketSerializer, self).validate(attrs=attrs)
+        Ticket.validate_ticket(
+            attrs["row"],
+            attrs["seat"],
+            attrs["performance"].theatre_hall,
+            ValidationError,
+        )
+        return data
+
+    class Meta:
+        model = Ticket
+        fields = ("row", "seat", "performance", "reservation")
+
+
+class TicketPerformanceSerializer(TicketSerializer):
+    class Meta:
+        model = Ticket
+        fields = ("row", "seat")
+
+
 class PerformanceDetailSerializer(PerformanceSerializer):
     play = PlayDetailSerializer()
     theatre_hall = TheatreHallSerializer()
+    taken_seats = TicketPerformanceSerializer(
+        source="tickets_performance", many=True, read_only=True
+    )
+
+    class Meta:
+        model = Performance
+        fields = ("id", "play", "theatre_hall", "show_time", "taken_seats")
 
 
 class PerformanceListSerializer(PerformanceSerializer):
@@ -116,20 +145,9 @@ class UserSerializer(serializers.ModelSerializer):
 class ReservationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reservation
-        fields = ("created_at", "user")
+        fields = ("id", "created_at", "user")
 
 
-class TicketSerializer(serializers.ModelSerializer):
-    def validate(self, attrs):
-        data = super(TicketSerializer, self).validate(attrs=attrs)
-        Ticket.validate_ticket(
-            attrs["row"],
-            attrs["seat"],
-            attrs["performance"].theatre_hall,
-            ValidationError,
-        )
-        return data
-
-    class Meta:
-        model = Ticket
-        fields = ("row", "seat", "performance", "reservation")
+class TicketDetailSerializer(TicketSerializer):
+    performance = PerformanceListSerializer()
+    reservation = ReservationSerializer()
