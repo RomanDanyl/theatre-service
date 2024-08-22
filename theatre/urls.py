@@ -17,8 +17,8 @@ router.register("actors", ActorViewSet)
 router.register("plays", PlayViewSet)
 router.register("halls", TheatreHallViewSet)
 router.register("performances", PerformanceViewSet)
-router.register("reservations", ReservationViewSet)
-router.register("tickets", TicketViewSet)
+router.register("reservations", ReservationViewSet, basename="reservation")
+router.register("tickets", TicketViewSet, basename="ticket")
 
 urlpatterns = [
     path("", include(router.urls)),

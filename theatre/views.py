@@ -2,6 +2,7 @@ from datetime import datetime
 
 from django.shortcuts import render
 from rest_framework import viewsets, filters
+from rest_framework.exceptions import PermissionDenied
 
 from theatre.models import (
     Actor,
@@ -114,23 +115,20 @@ class PerformanceViewSet(viewsets.ModelViewSet):
 
 
 class ReservationViewSet(viewsets.ModelViewSet):
-    queryset = Reservation.objects.prefetch_related("user", "tickets_reservation")
     serializer_class = ReservationSerializer
 
     def get_queryset(self):
+        queryset = Reservation.objects.prefetch_related(
+            "user", "tickets_reservation"
+        ).all()
         if self.request.user.is_staff:
-            return self.queryset
+            return queryset
         if self.request.user.is_authenticated:
-            return Reservation.objects.filter(user=self.request.user)
-        return self.queryset
+            return queryset.filter(user=self.request.user)
+        raise PermissionDenied("You do not have permission to access this resource.")
 
 
 class TicketViewSet(viewsets.ModelViewSet):
-    queryset = Ticket.objects.select_related(
-        "performance__play",
-        "performance__theatre_hall",
-        "reservation__user",
-    )
 
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -138,8 +136,13 @@ class TicketViewSet(viewsets.ModelViewSet):
         return TicketSerializer
 
     def get_queryset(self):
+        queryset = Ticket.objects.select_related(
+            "performance__play",
+            "performance__theatre_hall",
+            "reservation__user",
+        ).all()
         if self.request.user.is_staff:
-            return self.queryset
+            return queryset
         if self.request.user.is_authenticated:
-            return Ticket.objects.filter(reservation__user=self.request.user)
-        return self.queryset
+            return queryset.filter(reservation__user=self.request.user)
+        raise PermissionDenied("You do not have permission to access this resource.")
