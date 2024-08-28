@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.contrib.auth import get_user_model
 from django.db.models import F, Count
@@ -229,7 +229,7 @@ class AuthenticatedUserTheatrePerformancesAPITests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["results"], serializer.data)
 
-    def test_create_put_patch_delete_performance(self):
+    def test_user_create_put_patch_delete_performance(self):
         show_time = datetime.now().replace(microsecond=0)
         payload = {
             "play": self.play.id,
@@ -250,3 +250,50 @@ class AuthenticatedUserTheatrePerformancesAPITests(APITestCase):
         url = reverse("theatre:performance-detail", args=[performance.id])
         res = self.client.delete(url)
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class AuthenticatedAdminTheatrePerformancesAPITests(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_superuser(
+            "admin@test.com",
+            "testpass",
+        )
+        self.client.force_authenticate(self.user)
+        self.play = sample_play(title="Hamlet", description="A tragedy by Shakespeare")
+        self.theatre_hall = sample_theatre_hall(
+            name="Main Hall", rows=10, seats_in_row=10
+        )
+        self.performance = sample_performance(
+            play=self.play, theatre_hall=self.theatre_hall, show_time=datetime.now()
+        )
+
+    def test_admin_create_put_patch_delete_performance(self):
+        hall = sample_theatre_hall(name="Main rest11", rows=11, seats_in_row=10)
+        show_time = datetime.now().replace(microsecond=0)
+        payload = {
+            "play": self.play.id,
+            "theatre_hall": self.theatre_hall.id,
+            "show_time": show_time,
+        }
+        show_time_plus_5 = show_time + timedelta(hours=5)
+        updating_payload = {
+            "play": self.play.id,
+            "theatre_hall": self.theatre_hall.id,
+            "show_time": show_time_plus_5,
+        }
+        res = self.client.post(PERFORMANCE_URL, payload)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        url = reverse("theatre:performance-detail", args=[self.performance.id])
+        res = self.client.put(url, updating_payload)
+        self.assertEqual(res.status_code, status.HTTP_200_OK, msg="PUT failed!")
+        payload = {
+            "play": self.play.id,
+            "theatre_hall": hall.id,
+        }
+        res = self.client.patch(url, payload)
+        self.assertEqual(res.status_code, status.HTTP_200_OK, msg="PATCH failed!")
+        res = self.client.delete(url)
+        self.assertEqual(
+            res.status_code, status.HTTP_204_NO_CONTENT, msg="DELETE failed!"
+        )
