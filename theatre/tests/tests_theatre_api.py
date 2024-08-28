@@ -50,10 +50,11 @@ def sample_play(**params):
 
 
 def sample_performance(**params):
-    theatre_hall = TheatreHall.objects.create(name="Blue", rows=20, seats_in_row=20)
+    theatre_hall = sample_theatre_hall()
+    play = sample_play()
 
     defaults = {
-        "play": None,
+        "play": play,
         "theatre_hall": theatre_hall,
         "show_time": "2022-06-02 14:00:00",
     }
@@ -79,7 +80,7 @@ class UnauthenticatedTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
-class AuthenticatedTheatreApiTests(APITestCase):
+class AuthenticatedUserTheatrePlaysApiTests(APITestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(
@@ -147,7 +148,7 @@ class AuthenticatedTheatreApiTests(APITestCase):
         self.assertNotIn(serializer3.data, res.data["results"])
 
 
-class PerformanceViewSetTests(APITestCase):
+class AuthenticatedUserTheatrePerformancesAPITests(APITestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(
@@ -184,11 +185,16 @@ class PerformanceViewSetTests(APITestCase):
         """Test filtering performances by play"""
         res = self.client.get(PERFORMANCE_URL, {"play": self.play.id})
 
-        performances = Performance.objects.filter(play=self.play).order_by("id")
+        performances = Performance.objects.filter(play=self.play).annotate(
+            tickets_available=(
+                F("theatre_hall__rows") * F("theatre_hall__seats_in_row")
+                - Count("tickets_performance")
+            )
+        )
         serializer = PerformanceListSerializer(performances, many=True)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data, serializer.data)
+        self.assertEqual(res.data["results"], serializer.data)
 
     def test_filter_performances_by_theatre_hall(self):
         """Test filtering performances by theatre hall"""
@@ -222,3 +228,25 @@ class PerformanceViewSetTests(APITestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["results"], serializer.data)
+
+    def test_create_put_patch_delete_performance(self):
+        show_time = datetime.now().replace(microsecond=0)
+        payload = {
+            "play": self.play.id,
+            "theatre_hall": self.theatre_hall.id,
+            "show_time": show_time,
+        }
+        res = self.client.post(PERFORMANCE_URL, payload)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        res = self.client.put(PERFORMANCE_URL, payload)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        payload = {
+            "play": self.play.id,
+            "theatre_hall": self.theatre_hall.id,
+        }
+        res = self.client.patch(PERFORMANCE_URL, payload)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        performance = sample_performance()
+        url = reverse("theatre:performance-detail", args=[performance.id])
+        res = self.client.delete(url)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
