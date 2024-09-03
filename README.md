@@ -34,4 +34,11 @@ Theatre Service API is a Django-based web application for theatre management.
 
 DB schema
 
-![db](theatre_diagram_6b8017611a.webp)
+![db](screenshots/theatre_diagram_6b8017611a.webp)
+
+Screenshots
+
+![1](screenshots/1.png)
+![2](screenshots/3.png)
+![3](screenshots/4.png)
+![4](screenshots/5.png)
